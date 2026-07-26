@@ -1866,7 +1866,7 @@ export const System5Admin: React.FC<System5AdminProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
               
-              {sheetsToken && spreadsheetId ? (
+              {spreadsheetId ? (
                 // Connected State
                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 space-y-4">
                   <div className="flex items-start gap-4">
@@ -1874,12 +1874,16 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                       <CheckCircle2 className="w-6 h-6 text-emerald-600 animate-pulse" />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-md font-extrabold text-emerald-950">เชื่อมต่อ Google Sheets สำเร็จ</h4>
+                      <h4 className="text-md font-extrabold text-emerald-950">เชื่อมต่อฐานข้อมูล Google Sheets สำเร็จ (พร้อมใช้งานอัตโนมัติ)</h4>
                       <p className="text-xs text-emerald-800 font-medium">
-                        บัญชี Google: <span className="font-bold underline">{sheetsUser?.email || 'Connected'}</span>
+                        {sheetsToken ? (
+                          <>บัญชี Google OAuth: <span className="font-bold underline">{sheetsUser?.email || 'เข้าสู่ระบบแล้ว'}</span></>
+                        ) : (
+                          <>สถานะฐานข้อมูล: <span className="font-bold text-emerald-900">เชื่อมต่ออัตโนมัติ (เปิดรับและซิงค์ข้อมูลตามสิทธิ์ผู้ใช้เรียบร้อยแล้ว)</span></>
+                        )}
                       </p>
                       <p className="text-[11px] text-emerald-700/80 font-bold">
-                        สถานะระบบ: เขียนและบันทึกข้อมูลแบบเรียลไทม์ไปยัง Google Sheets เรียบร้อยแล้ว
+                        สถานะระบบ: ดึงและบันทึกข้อมูลแบบเรียลไทม์กับ Google Sheets โดยตรงสำหรับทุกบทบาท
                       </p>
                     </div>
                   </div>
@@ -1894,7 +1898,7 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                     <div>
                       <span className="block text-[11px] text-emerald-800/80 font-bold">ซิงค์ล่าสุด (Last Synced)</span>
                       <span className="text-xs font-bold text-emerald-900 mt-1 block">
-                        {lastSynced ? `🕒 ${lastSynced} น.` : 'กำลังเชื่อมโยงครั้งแรก...'}
+                        {lastSynced ? `🕒 ${lastSynced} น.` : 'พร้อมใช้งานแล้ว'}
                       </span>
                     </div>
                   </div>
@@ -1944,6 +1948,17 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                       )}
                       ส่งข้อมูลขึ้นชีต (Push)
                     </button>
+
+                    {!sheetsToken && (
+                      <button
+                        type="button"
+                        onClick={() => onConnectSheets(customSpreadsheetIdInput.trim() || undefined)}
+                        className="h-10 px-4 bg-[#1696CC] hover:bg-[#127ca9] text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        เข้าสู่ระบบ Google (เพื่อยืนยันสิทธิ์ OAuth)
+                      </button>
+                    )}
 
                     <button
                       type="button"

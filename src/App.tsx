@@ -109,31 +109,7 @@ export default function App() {
     if (isLoggedIn) {
       const token = sheetsToken || getCachedToken();
       const sId = spreadsheetId || localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
-      
-      const syncOnLogin = async () => {
-        let activeTok = token;
-        if (!activeTok) {
-          try {
-            const authRes = await googleSignIn();
-            if (authRes?.accessToken) {
-              activeTok = authRes.accessToken;
-              setSheetsToken(activeTok);
-              setCachedToken(activeTok);
-            }
-          } catch (err) {
-            console.warn('Auto Google Sign-In on login skipped/failed:', err);
-          }
-        }
-        if (activeTok) {
-          try {
-            await pullDataFromSheets(activeTok, sId);
-          } catch (err) {
-            console.error('Failed to auto-pull Google Sheets data on user login:', err);
-          }
-        }
-      };
-
-      syncOnLogin();
+      pullDataFromSheets(token, sId);
     }
   }, [isLoggedIn]);
 
@@ -145,10 +121,10 @@ export default function App() {
     const activeToken = getCachedToken();
     if (activeToken) {
       setSheetsToken(activeToken);
-      pullDataFromSheets(activeToken, storedSpreadsheetId).catch((e) => {
-        console.warn("Auto-pull on page load failed:", e);
-      });
     }
+
+    // Auto pull on page load for all users
+    pullDataFromSheets(activeToken, storedSpreadsheetId);
 
     const unsubscribe = initAuthListener(
       async (user, token) => {
@@ -204,69 +180,63 @@ export default function App() {
     }
   };
 
-  const pullDataFromSheets = async (token: string, sId: string, _isInitialConnect = false) => {
+  const pullDataFromSheets = async (token?: string | null, sId?: string, _isInitialConnect = false) => {
     setIsSyncing(true);
     setSyncError(null);
-    let activeSid = sId;
+    const activeSid = sId || spreadsheetId || localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
+    const activeTok = token || sheetsToken || getCachedToken() || '';
+
     try {
-      try {
-        await ensureRequiredSheetsExist(token, activeSid);
-      } catch (ensureErr: any) {
-        const errStr = String(ensureErr?.message || ensureErr);
-        if (errStr.includes('404') || errStr.includes('NOT_FOUND') || errStr.includes('Requested entity was not found')) {
-          console.warn(`Spreadsheet ID "${activeSid}" not found or not accessible. Creating/Finding "PLC Connect Database"...`);
-          activeSid = await findOrCreateDatabaseSpreadsheet(token);
-          setSpreadsheetId(activeSid);
-          localStorage.setItem('plc_connect_spreadsheet_id', activeSid);
-          await ensureRequiredSheetsExist(token, activeSid);
-        } else {
-          throw ensureErr;
+      if (activeTok) {
+        try {
+          await ensureRequiredSheetsExist(activeTok, activeSid);
+        } catch (ensureErr: any) {
+          const errStr = String(ensureErr?.message || ensureErr);
+          if (errStr.includes('404') || errStr.includes('NOT_FOUND') || errStr.includes('Requested entity was not found')) {
+            console.warn(`Spreadsheet ID "${activeSid}" not found or not accessible. Creating/Finding "PLC Connect Database"...`);
+            try {
+              const newSid = await findOrCreateDatabaseSpreadsheet(activeTok);
+              setSpreadsheetId(newSid);
+              localStorage.setItem('plc_connect_spreadsheet_id', newSid);
+              await ensureRequiredSheetsExist(activeTok, newSid);
+            } catch (createErr) {
+              console.warn('Could not auto-create database sheet:', createErr);
+            }
+          }
         }
       }
 
-      const usersData = await readSheet(token, activeSid, 'Users');
-      const mastersData = await readSheet(token, activeSid, 'MasterInnovations');
-      const plcData = await readSheet(token, activeSid, 'PLCActivities');
-      const classroomsData = await readSheet(token, activeSid, 'ClassroomInnovations');
-      const adminData = await readSheet(token, activeSid, 'AdminSettings');
+      const usersData = await readSheet(activeTok, activeSid, 'Users');
+      const mastersData = await readSheet(activeTok, activeSid, 'MasterInnovations');
+      const plcData = await readSheet(activeTok, activeSid, 'PLCActivities');
+      const classroomsData = await readSheet(activeTok, activeSid, 'ClassroomInnovations');
+      const adminData = await readSheet(activeTok, activeSid, 'AdminSettings');
 
       if (usersData && usersData.length > 1) {
         setUsersList(mapUsers(usersData));
-      } else {
-        setUsersList([]);
       }
 
       if (mastersData && mastersData.length > 1) {
         setMasterInnovations(mapMasterInnovations(mastersData));
-      } else {
-        setMasterInnovations([]);
       }
 
       if (plcData && plcData.length > 1) {
         setPlcActivities(mapPLCActivities(plcData));
-      } else {
-        setPlcActivities([]);
       }
 
       if (classroomsData && classroomsData.length > 1) {
         setClassroomInnovations(mapClassroomInnovations(classroomsData));
-      } else {
-        setClassroomInnovations([]);
       }
 
       if (adminData && adminData.length > 1) {
         setAdminSettings(mapAdminSettings(adminData));
-      } else {
-        setAdminSettings(initialAdminSettings);
       }
 
       const now = new Date().toLocaleTimeString();
       setLastSynced(now);
       localStorage.setItem('plc_connect_last_synced', now);
     } catch (err: any) {
-      console.error(err);
-      setSyncError(err.message || 'ดึงข้อมูลจาก Google Sheets ล้มเหลว');
-      throw err;
+      console.warn('Google Sheets auto-pull notice:', err);
     } finally {
       setIsSyncing(false);
     }

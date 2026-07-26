@@ -557,22 +557,95 @@ export async function clearAndWriteSheet(
   }
 }
 
-export async function readSheet(
-  token: string,
+export function parseCSV(text: string): string[][] {
+  const lines: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let insideQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        cell += '"';
+        i++;
+      } else {
+        insideQuote = !insideQuote;
+      }
+    } else if (char === ',' && !insideQuote) {
+      row.push(cell);
+      cell = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuote) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      row.push(cell);
+      if (row.length > 0 && !(row.length === 1 && row[0] === '')) {
+        lines.push(row);
+      }
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  if (cell !== '' || row.length > 0) {
+    row.push(cell);
+    lines.push(row);
+  }
+  return lines;
+}
+
+export async function readSheetCSV(
   spreadsheetId: string,
   sheetName: string
 ): Promise<any[][] | null> {
-  const readRange = encodeURIComponent(`${sheetName}!A1:Z10000`);
-  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${readRange}`;
-  const res = await fetch(readUrl, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!res.ok) {
-    console.error(`Failed to read sheet ${sheetName}:`, await res.text());
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      return null;
+    }
+    const text = await res.text();
+    if (text.includes('<!DOCTYPE html>') || text.includes('google-signin') || text.includes('<html')) {
+      return null;
+    }
+    const parsed = parseCSV(text);
+    return parsed.length > 0 ? parsed : null;
+  } catch (e) {
+    console.warn(`readSheetCSV notice for ${sheetName}:`, e);
     return null;
   }
-  const data = await res.json();
-  return data.values || [];
+}
+
+export async function readSheet(
+  token: string | null | undefined,
+  spreadsheetId: string,
+  sheetName: string
+): Promise<any[][] | null> {
+  if (token) {
+    try {
+      const readRange = encodeURIComponent(`${sheetName}!A1:Z10000`);
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${readRange}`;
+      const res = await fetch(readUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.values) return data.values;
+      } else {
+        console.warn(`OAuth readSheet for ${sheetName} returned status ${res.status}. Trying CSV fallback...`);
+      }
+    } catch (err) {
+      console.warn(`OAuth readSheet error for ${sheetName}:`, err);
+    }
+  }
+
+  // Fallback to CSV reading
+  const csvData = await readSheetCSV(spreadsheetId, sheetName);
+  return csvData;
 }
 
 // 3. Bidirectional Mappings for all Entities
