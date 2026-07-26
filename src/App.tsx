@@ -860,6 +860,7 @@ export default function App() {
               currentUser={currentUser}
               usersList={usersList}
               adminSettings={adminSettings}
+              masterInnovations={masterInnovations}
               classroomInnovations={classroomInnovations}
               plcActivities={plcActivities}
               onDeleteClassroom={handleDeleteClassroom}

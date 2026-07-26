@@ -598,6 +598,24 @@ export function parseCSV(text: string): string[][] {
   return lines;
 }
 
+export function safeJsonParse<T>(val: any, fallback: T): T {
+  if (!val) return fallback;
+  if (typeof val === 'object') return val;
+  try {
+    const parsed = JSON.parse(val);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getColIdx(headerRow: any[], possibleNames: string[], defaultIdx: number): number {
+  if (!headerRow || !Array.isArray(headerRow)) return defaultIdx;
+  const normalized = possibleNames.map(n => n.toLowerCase().trim());
+  const found = headerRow.findIndex(h => h && normalized.includes(String(h).toLowerCase().trim()));
+  return found !== -1 ? found : defaultIdx;
+}
+
 export async function readSheetCSV(
   spreadsheetId: string,
   sheetName: string
@@ -627,8 +645,7 @@ export async function readSheet(
 ): Promise<any[][] | null> {
   if (token) {
     try {
-      const readRange = encodeURIComponent(`${sheetName}!A1:Z10000`);
-      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${readRange}`;
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'${encodeURIComponent(sheetName)}'`;
       const res = await fetch(readUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -663,16 +680,28 @@ export async function syncUsers(token: string, spreadsheetId: string, users: App
   await clearAndWriteSheet(token, spreadsheetId, 'Users', USERS_HEADERS, rows);
 }
 export function mapUsers(values: any[][]): AppUser[] {
-  if (values.length <= 1) return [];
+  if (!values || values.length <= 1) return [];
+  const headerRow = values[0] || [];
   const dataRows = values.slice(1);
-  return dataRows.map(row => ({
-    email: row[0] || '',
-    role: (row[1] || 'Recorder') as UserRole,
-    name: row[2] || '',
-    password: row[3] || '',
-    assignedGrade: row[4] ? row[4] as any : undefined,
-    assignedClassroom: row[5] || undefined
-  }));
+
+  const idxEmail = getColIdx(headerRow, ['email', 'อีเมล', 'user', 'username', 'ชื่อผู้ใช้'], 0);
+  const idxRole = getColIdx(headerRow, ['role', 'บทบาท', 'สิทธิ์', 'บทบาทสิทธิ์'], 1);
+  const idxName = getColIdx(headerRow, ['name', 'ชื่อ', 'ชื่อ-นามสกุล', 'ชื่อสมาชิก'], 2);
+  const idxPass = getColIdx(headerRow, ['password', 'รหัสผ่าน', 'pass'], 3);
+  const idxGrade = getColIdx(headerRow, ['assignedgrade', 'ระดับชั้น', 'ชั้น'], 4);
+  const idxClassroom = getColIdx(headerRow, ['assignedclassroom', 'ห้องเรียน', 'ห้อง'], 5);
+
+  return dataRows
+    .filter(row => row && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''))
+    .map(row => ({
+      email: String(row[idxEmail] || '').trim(),
+      role: (String(row[idxRole] || 'Recorder').trim() || 'Recorder') as UserRole,
+      name: String(row[idxName] || '').trim(),
+      password: String(row[idxPass] || '').trim(),
+      assignedGrade: row[idxGrade] ? String(row[idxGrade]).trim() as any : undefined,
+      assignedClassroom: row[idxClassroom] ? String(row[idxClassroom]).trim() : undefined
+    }))
+    .filter(u => u.email || u.name);
 }
 
 // MasterInnovations Sheet
@@ -690,16 +719,30 @@ export async function syncMasterInnovations(token: string, spreadsheetId: string
   await clearAndWriteSheet(token, spreadsheetId, 'MasterInnovations', MASTER_HEADERS, rows);
 }
 export function mapMasterInnovations(values: any[][]): MasterInnovation[] {
-  if (values.length <= 1) return [];
-  return values.slice(1).map(row => ({
-    id: row[0] || '',
-    academicYear: parseInt(row[1] || '2569') || 2569,
-    semester: (parseInt(row[2] || '1') || 1) as 1 | 2,
-    gradeLevel: row[3] as any || 'ม.1',
-    theme: row[4] || '',
-    competencies: row[5] ? JSON.parse(row[5]) : { thai:'', math:'', science:'', technology:'', social:'', english:'', chinese:'', career:'', health:'', art:'', guidance:'' },
-    committees: row[6] ? JSON.parse(row[6]) : []
-  }));
+  if (!values || values.length <= 1) return [];
+  const headerRow = values[0] || [];
+  const dataRows = values.slice(1);
+
+  const idxId = getColIdx(headerRow, ['id', 'รหัส'], 0);
+  const idxYear = getColIdx(headerRow, ['academicyear', 'ปีการศึกษา'], 1);
+  const idxSem = getColIdx(headerRow, ['semester', 'ภาคเรียน'], 2);
+  const idxGrade = getColIdx(headerRow, ['gradelevel', 'ระดับชั้น'], 3);
+  const idxTheme = getColIdx(headerRow, ['theme', 'หัวข้อ', 'ชื่อนวัตกรรม'], 4);
+  const idxComp = getColIdx(headerRow, ['competencies', 'สมรรถนะ'], 5);
+  const idxComm = getColIdx(headerRow, ['committees', 'คณะกรรมการ'], 6);
+
+  return dataRows
+    .filter(row => row && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''))
+    .map(row => ({
+      id: String(row[idxId] || '').trim(),
+      academicYear: parseInt(String(row[idxYear] || '2569')) || 2569,
+      semester: (parseInt(String(row[idxSem] || '1')) || 1) as 1 | 2,
+      gradeLevel: (String(row[idxGrade] || 'ม.1').trim()) as any,
+      theme: String(row[idxTheme] || '').trim(),
+      competencies: safeJsonParse(row[idxComp], { thai:'', math:'', science:'', technology:'', social:'', english:'', chinese:'', career:'', health:'', art:'', guidance:'' }),
+      committees: safeJsonParse(row[idxComm], [])
+    }))
+    .filter(m => m.id || m.theme);
 }
 
 // PLCActivities Sheet
@@ -757,32 +800,62 @@ export async function syncPLCActivities(token: string, spreadsheetId: string, ac
   await clearAndWriteSheet(token, spreadsheetId, 'PLCActivities', PLC_HEADERS, rows);
 }
 export function mapPLCActivities(values: any[][]): PLCActivity[] {
-  if (values.length <= 1) return [];
-  return values.slice(1).map(row => ({
-    id: row[0] || '',
-    gradeLevel: row[1] as any || 'ม.1',
-    semester: (parseInt(row[2] || '1') || 1) as 1 | 2,
-    academicYear: parseInt(row[3] || '2569') || 2569,
-    groupName: row[4] || '',
-    times: parseInt(row[5] || '1') || 1,
-    date: row[6] || '',
-    location: row[7] || '',
-    durationHours: parseInt(row[8] || '1') || 0,
-    durationMinutes: parseInt(row[9] || '0') || 0,
-    plcLeader: row[10] || '',
-    expertRole1: row[11] || '',
-    expertRole2: row[12] || '',
-    expertRole3: row[13] || '',
-    expertRole4: row[14] || '',
-    otherParticipants: row[15] || '',
-    procedures: row[16] || '',
-    results: row[17] || '',
-    suggestions: row[18] || '',
-    images: row[19] ? JSON.parse(row[19]) : [],
-    recorderName: row[20] || '',
-    certifiedName: row[21] || '',
-    signatures: row[22] ? JSON.parse(row[22]) : {}
-  }));
+  if (!values || values.length <= 1) return [];
+  const headerRow = values[0] || [];
+  const dataRows = values.slice(1);
+
+  const idxId = getColIdx(headerRow, ['id', 'รหัส'], 0);
+  const idxGrade = getColIdx(headerRow, ['gradelevel', 'ระดับชั้น'], 1);
+  const idxSem = getColIdx(headerRow, ['semester', 'ภาคเรียน'], 2);
+  const idxYear = getColIdx(headerRow, ['academicyear', 'ปีการศึกษา'], 3);
+  const idxGroup = getColIdx(headerRow, ['groupname', 'ชื่อกลุ่ม'], 4);
+  const idxTimes = getColIdx(headerRow, ['times', 'ครั้งที่'], 5);
+  const idxDate = getColIdx(headerRow, ['date', 'วันที่'], 6);
+  const idxLoc = getColIdx(headerRow, ['location', 'สถานที่'], 7);
+  const idxDurH = getColIdx(headerRow, ['durationhours', 'ชั่วโมง'], 8);
+  const idxDurM = getColIdx(headerRow, ['durationminutes', 'นาที'], 9);
+  const idxLeader = getColIdx(headerRow, ['plcleader', 'ประธานกลุ่ม'], 10);
+  const idxExp1 = getColIdx(headerRow, ['expertrole1', 'ผู้เชี่ยวชาญ1'], 11);
+  const idxExp2 = getColIdx(headerRow, ['expertrole2', 'ผู้เชี่ยวชาญ2'], 12);
+  const idxExp3 = getColIdx(headerRow, ['expertrole3', 'ผู้เชี่ยวชาญ3'], 13);
+  const idxExp4 = getColIdx(headerRow, ['expertrole4', 'ผู้เชี่ยวชาญ4'], 14);
+  const idxOther = getColIdx(headerRow, ['otherparticipants', 'ผู้เข้าร่วมอื่น'], 15);
+  const idxProc = getColIdx(headerRow, ['procedures', 'ขั้นตอน'], 16);
+  const idxRes = getColIdx(headerRow, ['results', 'ผลการดำเนินงาน'], 17);
+  const idxSugg = getColIdx(headerRow, ['suggestions', 'ข้อเสนอแนะ'], 18);
+  const idxImg = getColIdx(headerRow, ['images', 'รูปภาพ'], 19);
+  const idxRec = getColIdx(headerRow, ['recordername', 'ผู้บันทึก'], 20);
+  const idxCert = getColIdx(headerRow, ['certifiedname', 'ผู้รับรอง'], 21);
+  const idxSigs = getColIdx(headerRow, ['signatures', 'ลายเซ็น'], 22);
+
+  return dataRows
+    .filter(row => row && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''))
+    .map(row => ({
+      id: String(row[idxId] || '').trim(),
+      gradeLevel: (String(row[idxGrade] || 'ม.1').trim()) as any,
+      semester: (parseInt(String(row[idxSem] || '1')) || 1) as 1 | 2,
+      academicYear: parseInt(String(row[idxYear] || '2569')) || 2569,
+      groupName: String(row[idxGroup] || '').trim(),
+      times: parseInt(String(row[idxTimes] || '1')) || 1,
+      date: String(row[idxDate] || '').trim(),
+      location: String(row[idxLoc] || '').trim(),
+      durationHours: parseInt(String(row[idxDurH] || '0')) || 0,
+      durationMinutes: parseInt(String(row[idxDurM] || '0')) || 0,
+      plcLeader: String(row[idxLeader] || '').trim(),
+      expertRole1: String(row[idxExp1] || '').trim(),
+      expertRole2: String(row[idxExp2] || '').trim(),
+      expertRole3: String(row[idxExp3] || '').trim(),
+      expertRole4: String(row[idxExp4] || '').trim(),
+      otherParticipants: String(row[idxOther] || '').trim(),
+      procedures: String(row[idxProc] || '').trim(),
+      results: String(row[idxRes] || '').trim(),
+      suggestions: String(row[idxSugg] || '').trim(),
+      images: safeJsonParse(row[idxImg], []),
+      recorderName: String(row[idxRec] || '').trim(),
+      certifiedName: String(row[idxCert] || '').trim(),
+      signatures: safeJsonParse(row[idxSigs], {})
+    }))
+    .filter(act => act.id || act.groupName || act.procedures);
 }
 
 // ClassroomInnovations Sheet
@@ -810,23 +883,44 @@ export async function syncClassroomInnovations(token: string, spreadsheetId: str
   await clearAndWriteSheet(token, spreadsheetId, 'ClassroomInnovations', CLASSROOM_HEADERS, rows);
 }
 export function mapClassroomInnovations(values: any[][]): ClassroomInnovation[] {
-  if (values.length <= 1) return [];
-  return values.slice(1).map(row => ({
-    id: row[0] || '',
-    masterId: row[1] || '',
-    classroomName: row[2] || '',
-    innovationName: row[3] || '',
-    memberCount: parseInt(row[4] || '0') || 0,
-    committees: row[5] ? JSON.parse(row[5]) : { president:'', vicePresident:'', publicRelations:'', treasurer:'', secretary:'' },
-    briefDetails: row[6] || '',
-    goals: row[7] || '',
-    expectedBenefits: row[8] || '',
-    competencies: row[9] ? JSON.parse(row[9]) : { thai:'', math:'', science:'', technology:'', social:'', english:'', chinese:'', career:'', health:'', art:'', guidance:'' },
-    reporterName: row[10] || '',
-    classroomPresident: row[11] || '',
-    files: row[12] ? JSON.parse(row[12]) : {},
-    signatures: row[13] ? JSON.parse(row[13]) : {}
-  }));
+  if (!values || values.length <= 1) return [];
+  const headerRow = values[0] || [];
+  const dataRows = values.slice(1);
+
+  const idxId = getColIdx(headerRow, ['id', 'รหัส'], 0);
+  const idxMasterId = getColIdx(headerRow, ['masterid', 'รหัสหลัก'], 1);
+  const idxClass = getColIdx(headerRow, ['classroomname', 'ชื่อห้องเรียน', 'ห้องเรียน'], 2);
+  const idxInno = getColIdx(headerRow, ['innovationname', 'ชื่อนวัตกรรม'], 3);
+  const idxCount = getColIdx(headerRow, ['membercount', 'จำนวนสมาชิก'], 4);
+  const idxComm = getColIdx(headerRow, ['committees', 'คณะกรรมการ'], 5);
+  const idxBrief = getColIdx(headerRow, ['briefdetails', 'รายละเอียดสังเขป'], 6);
+  const idxGoals = getColIdx(headerRow, ['goals', 'เป้าหมาย'], 7);
+  const idxBen = getColIdx(headerRow, ['expectedbenefits', 'ประโยชน์ที่คาดว่าจะได้รับ'], 8);
+  const idxComp = getColIdx(headerRow, ['competencies', 'สมรรถนะ'], 9);
+  const idxRep = getColIdx(headerRow, ['reportername', 'ผู้รายงาน'], 10);
+  const idxPres = getColIdx(headerRow, ['classroompresident', 'ประธานห้องเรียน'], 11);
+  const idxFiles = getColIdx(headerRow, ['files', 'ไฟล์'], 12);
+  const idxSigs = getColIdx(headerRow, ['signatures', 'ลายเซ็น'], 13);
+
+  return dataRows
+    .filter(row => row && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''))
+    .map(row => ({
+      id: String(row[idxId] || '').trim(),
+      masterId: String(row[idxMasterId] || '').trim(),
+      classroomName: String(row[idxClass] || '').trim(),
+      innovationName: String(row[idxInno] || '').trim(),
+      memberCount: parseInt(String(row[idxCount] || '0')) || 0,
+      committees: safeJsonParse(row[idxComm], { president:'', vicePresident:'', publicRelations:'', treasurer:'', secretary:'' }),
+      briefDetails: String(row[idxBrief] || '').trim(),
+      goals: String(row[idxGoals] || '').trim(),
+      expectedBenefits: String(row[idxBen] || '').trim(),
+      competencies: safeJsonParse(row[idxComp], { thai:'', math:'', science:'', technology:'', social:'', english:'', chinese:'', career:'', health:'', art:'', guidance:'' }),
+      reporterName: String(row[idxRep] || '').trim(),
+      classroomPresident: String(row[idxPres] || '').trim(),
+      files: safeJsonParse(row[idxFiles], {}),
+      signatures: safeJsonParse(row[idxSigs], {})
+    }))
+    .filter(ci => ci.id || ci.classroomName || ci.innovationName);
 }
 
 // AdminSettings Sheet

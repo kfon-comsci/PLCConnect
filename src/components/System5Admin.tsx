@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { AppUser, AdminSettings, UserRole, GoogleDriveLink, GradePlanLink, SubjectPlanLink, ActivityPhotoLink, ClassroomInnovation, UploadedFile, PLCActivity } from '../types';
+import { AppUser, AdminSettings, UserRole, GoogleDriveLink, GradePlanLink, SubjectPlanLink, ActivityPhotoLink, ClassroomInnovation, UploadedFile, PLCActivity, MasterInnovation } from '../types';
 import { Users, Settings2, ShieldCheck, Plus, Trash2, Edit, Save, Globe, RefreshCcw, Lock, Key, Layers, BookOpen, Camera, FileSpreadsheet, CheckCircle2, XCircle, Database, ExternalLink, Loader2, FileText, Eye, X, Upload, Folder, Link as LinkIcon, FileImage, Copy, Check, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface System5AdminProps {
   currentUser: AppUser;
   usersList: AppUser[];
   adminSettings: AdminSettings;
+  masterInnovations?: MasterInnovation[];
   classroomInnovations?: ClassroomInnovation[];
   plcActivities?: PLCActivity[];
   onDeleteClassroom?: (id: string) => void;
@@ -30,6 +31,7 @@ export const System5Admin: React.FC<System5AdminProps> = ({
   currentUser,
   usersList,
   adminSettings,
+  masterInnovations = [],
   classroomInnovations = [],
   plcActivities = [],
   onDeleteClassroom,
@@ -1900,6 +1902,26 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                       <span className="text-xs font-bold text-emerald-900 mt-1 block">
                         {lastSynced ? `🕒 ${lastSynced} น.` : 'พร้อมใช้งานแล้ว'}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Synced Data Breakdown */}
+                  <div className="bg-emerald-100/40 border border-emerald-200/80 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100 shadow-sm">
+                      <span className="text-[10px] text-emerald-800 font-bold block">ผู้ใช้งาน (Users)</span>
+                      <span className="text-sm font-black text-emerald-950">{usersList.length} รายการ</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100 shadow-sm">
+                      <span className="text-[10px] text-emerald-800 font-bold block">โครงสร้างหลัก (Master)</span>
+                      <span className="text-sm font-black text-emerald-950">{masterInnovations.length} รายการ</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100 shadow-sm">
+                      <span className="text-[10px] text-emerald-800 font-bold block">กิจกรรม PLC</span>
+                      <span className="text-sm font-black text-emerald-950">{plcActivities.length} รายการ</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100 shadow-sm">
+                      <span className="text-[10px] text-emerald-800 font-bold block">นวัตกรรมห้องเรียน</span>
+                      <span className="text-sm font-black text-emerald-950">{classroomInnovations.length} รายการ</span>
                     </div>
                   </div>
 
