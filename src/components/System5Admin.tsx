@@ -228,7 +228,7 @@ export const System5Admin: React.FC<System5AdminProps> = ({
       setUploadLogSortDirection('asc');
     }
   };
-  const [customSpreadsheetIdInput, setCustomSpreadsheetIdInput] = useState('');
+  const [customSpreadsheetIdInput, setCustomSpreadsheetIdInput] = useState(spreadsheetId || '14HIQBJxAjXcZCl1lU8UuSXeVIVL0VKtQKffXK_GqwPg');
 
   // Grade-level lesson plans states
   const [gradePlansList, setGradePlansList] = useState<GradePlanLink[]>(
@@ -2019,11 +2019,11 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                 วิธีการทำงาน & โครงสร้างแผ่นงาน
               </h4>
               <ul className="space-y-2.5 list-disc pl-4 text-gray-700 font-semibold">
-                <li>เมื่อคลิกปุ่มระบบจะค้นหาแผ่นงานชื่อ <span className="text-purple-700 underline font-extrabold">PLC Connect Database</span> ใน Google Drive ของคุณ</li>
-                <li>หากไม่พบ ระบบจะสร้างแผ่นงานใหม่และเริ่มใส่โครงสร้างหัวตาราง (Schema) ให้อัตโนมัติ</li>
-                <li>โครงสร้างหัวตารางจะแบ่งเป็น 5 แท็บ: <span className="font-bold text-gray-900">Users, MasterInnovations, PLCActivities, ClassroomInnovations, AdminSettings</span></li>
-                <li>เมื่อคุณเพิ่ม/แก้ไข/ลบข้อมูลในระบบนี้ ข้อมูลจะถูกบันทึกส่งไปยัง Google Sheets ของคุณในแบบเรียลไทม์</li>
-                <li>คุณสามารถเปิดลิงก์เพื่อตกแต่ง ตรวจสอบ หรือจัดพิมพ์ข้อมูลต่อยอดจาก Google Sheets ได้โดยตรงทันที</li>
+                <li>ค่าเริ่มต้นจะเชื่อมโยงกับ Google Sheets ID: <span className="font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded font-extrabold select-all">14HIQBJxAjXcZCl1lU8UuSXeVIVL0VKtQKffXK_GqwPg</span></li>
+                <li>เมื่อกดเข้าสู่ระบบ Google สิทธิ์การเข้าถึงจะถูกจัดเก็บเพื่อใช้ซิงค์ข้อมูลผ่าน Google Sheets API</li>
+                <li>แท็บฐานข้อมูลหลักประกอบด้วย: <span className="font-bold text-gray-900">Users, MasterInnovations, PLCActivities, ClassroomInnovations, AdminSettings, UploadLogs</span></li>
+                <li>หากใช้งานผ่าน Vercel/GitHub และระบบแจ้งเตือน Auth Domain Error ให้เพิ่มโดเมน Vercel ของคุณใน Firebase Console (Authentication &gt; Authorized domains)</li>
+                <li>เมื่อเพิ่ม/แก้ไขข้อมูล ข้อมูลจะถูกซิงค์ตรงไปยัง Google Sheets และ Google Drive โดยอัตโนมัติ</li>
               </ul>
             </div>
           </div>

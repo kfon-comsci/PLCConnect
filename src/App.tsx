@@ -85,8 +85,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [sheetsToken, setSheetsToken] = useState<string | null>(null); // Kept safely in-memory only
-  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => {
-    return localStorage.getItem('plc_connect_spreadsheet_id');
+  const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
+    return localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -101,44 +101,43 @@ export default function App() {
         setSheetsUser(user);
         setSheetsToken(token);
         localStorage.setItem('plc_connect_sheets_user', JSON.stringify(user));
-        const storedSpreadsheetId = localStorage.getItem('plc_connect_spreadsheet_id');
-        if (storedSpreadsheetId) {
-          setSpreadsheetId(storedSpreadsheetId);
-          // Auto background pull on session restore to keep things up-to-date
-          try {
-            await ensureRequiredSheetsExist(token, storedSpreadsheetId);
-            const usersData = await readSheet(token, storedSpreadsheetId, 'Users');
-            if (usersData && usersData.length > 1) {
-              setUsersList(mapUsers(usersData));
-            }
-            const mastersData = await readSheet(token, storedSpreadsheetId, 'MasterInnovations');
-            if (mastersData && mastersData.length > 1) {
-              setMasterInnovations(mapMasterInnovations(mastersData));
-            }
-            const plcData = await readSheet(token, storedSpreadsheetId, 'PLCActivities');
-            if (plcData && plcData.length > 1) {
-              setPlcActivities(mapPLCActivities(plcData));
-            }
-            const classroomsData = await readSheet(token, storedSpreadsheetId, 'ClassroomInnovations');
-            if (classroomsData && classroomsData.length > 1) {
-              setClassroomInnovations(mapClassroomInnovations(classroomsData));
-            }
-            const adminData = await readSheet(token, storedSpreadsheetId, 'AdminSettings');
-            if (adminData && adminData.length > 1) {
-              setAdminSettings(mapAdminSettings(adminData));
-            }
-            const now = new Date().toLocaleTimeString();
-            setLastSynced(now);
-            localStorage.setItem('plc_connect_last_synced', now);
-          } catch (e) {
-            console.error("Auto-pull on session restore failed:", e);
+        const storedSpreadsheetId = localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
+        setSpreadsheetId(storedSpreadsheetId);
+        localStorage.setItem('plc_connect_spreadsheet_id', storedSpreadsheetId);
+        
+        // Auto background pull on session restore to keep things up-to-date
+        try {
+          await ensureRequiredSheetsExist(token, storedSpreadsheetId);
+          const usersData = await readSheet(token, storedSpreadsheetId, 'Users');
+          if (usersData && usersData.length > 1) {
+            setUsersList(mapUsers(usersData));
           }
+          const mastersData = await readSheet(token, storedSpreadsheetId, 'MasterInnovations');
+          if (mastersData && mastersData.length > 1) {
+            setMasterInnovations(mapMasterInnovations(mastersData));
+          }
+          const plcData = await readSheet(token, storedSpreadsheetId, 'PLCActivities');
+          if (plcData && plcData.length > 1) {
+            setPlcActivities(mapPLCActivities(plcData));
+          }
+          const classroomsData = await readSheet(token, storedSpreadsheetId, 'ClassroomInnovations');
+          if (classroomsData && classroomsData.length > 1) {
+            setClassroomInnovations(mapClassroomInnovations(classroomsData));
+          }
+          const adminData = await readSheet(token, storedSpreadsheetId, 'AdminSettings');
+          if (adminData && adminData.length > 1) {
+            setAdminSettings(mapAdminSettings(adminData));
+          }
+          const now = new Date().toLocaleTimeString();
+          setLastSynced(now);
+          localStorage.setItem('plc_connect_last_synced', now);
+        } catch (e) {
+          console.error("Auto-pull on session restore failed:", e);
         }
       },
       () => {
         setSheetsUser(null);
         setSheetsToken(null);
-        setSpreadsheetId(null);
         localStorage.removeItem('plc_connect_sheets_user');
       }
     );
@@ -232,10 +231,7 @@ export default function App() {
         setSheetsToken(res.accessToken);
         localStorage.setItem('plc_connect_sheets_user', JSON.stringify(res.user));
         
-        let sId = customId;
-        if (!sId) {
-          sId = await findOrCreateDatabaseSpreadsheet(res.accessToken);
-        }
+        let sId = customId?.trim() || spreadsheetId || TARGET_SPREADSHEET_ID;
         
         setSpreadsheetId(sId);
         localStorage.setItem('plc_connect_spreadsheet_id', sId);
@@ -259,7 +255,7 @@ export default function App() {
       await googleSignOut();
       setSheetsUser(null);
       setSheetsToken(null);
-      setSpreadsheetId(null);
+      setSpreadsheetId(TARGET_SPREADSHEET_ID);
       setLastSynced(null);
       localStorage.removeItem('plc_connect_spreadsheet_id');
       localStorage.removeItem('plc_connect_last_synced');
