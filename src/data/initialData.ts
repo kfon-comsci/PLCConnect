@@ -57,31 +57,56 @@ export const initialAdminSettings: AdminSettings = {
 
 export const defaultUsers: AppUser[] = [
   {
+    email: 'admin1',
+    role: 'Admin',
+    name: 'นางสาวกนกรัตน์ จำเนียรสุข',
+    password: '1234'
+  },
+  {
+    email: 'bms1',
+    role: 'Executive',
+    name: 'นายปริวัตร วงษ์จันทร์',
+    password: '1234'
+  },
+  {
+    email: 'bms2',
+    role: 'Executive',
+    name: 'นายวันรบ บุญน่า',
+    password: '1234'
+  },
+  {
+    email: 'admin2',
+    role: 'Admin',
+    name: 'นายพงศธร ล้อมไธสง',
+    password: '1234'
+  },
+  {
+    email: 'T500',
+    role: 'Committee',
+    name: 'นางสาวนารีรัตน์ เทศกาล',
+    password: '5555',
+    assignedGrade: 'ม.5'
+  },
+  {
+    email: 'ST603',
+    role: 'Recorder',
+    name: 'นางสาวบุษกรบุษ ภาระบุตร',
+    password: '6666',
+    assignedGrade: 'ม.6',
+    assignedClassroom: 'ม.6/3'
+  },
+  {
+    email: 'T609',
+    role: 'Committee',
+    name: 'นางสาวพันธวดี เพชรรางกูล',
+    password: '6666',
+    assignedGrade: 'ม.6'
+  },
+  {
     email: 'kanok.comsci@gmail.com',
     role: 'Admin',
     name: 'ครูกนก พงษ์สวัสดิ์ (Admin)',
     password: 'admin1234'
-  },
-  {
-    email: 'director@bms.ac.th',
-    role: 'Executive',
-    name: 'ดร.สมชาย ใจงาม (ผู้อำนวยการ)',
-    password: 'exec1234'
-  },
-  {
-    email: 'm1_committee@bms.ac.th',
-    role: 'Committee',
-    name: 'ครูสมศรี ศิริพงษ์ (กรรมการระดับชั้น ม.1)',
-    assignedGrade: 'ม.1',
-    password: 'com1234'
-  },
-  {
-    email: 'm1_1_recorder@bms.ac.th',
-    role: 'Recorder',
-    name: 'ครูสมจิต รักษ์ดี (ครูที่ปรึกษา ม.1/1)',
-    assignedGrade: 'ม.1',
-    assignedClassroom: 'ม.1/1',
-    password: 'rec1234'
   }
 ];
 

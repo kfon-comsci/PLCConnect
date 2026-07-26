@@ -56,7 +56,15 @@ export default function App() {
 
   const [usersList, setUsersList] = useState<AppUser[]>(() => {
     const saved = localStorage.getItem('plc_connect_users_list');
-    return saved ? JSON.parse(saved) : defaultUsers;
+    if (!saved) return defaultUsers;
+    try {
+      const parsed: AppUser[] = JSON.parse(saved);
+      const existingEmails = new Set(parsed.map(u => (u.email || '').toLowerCase()));
+      const missingDefaults = defaultUsers.filter(d => !existingEmails.has((d.email || '').toLowerCase()));
+      return missingDefaults.length > 0 ? [...parsed, ...missingDefaults] : parsed;
+    } catch {
+      return defaultUsers;
+    }
   });
 
   const [masterInnovations, setMasterInnovations] = useState<MasterInnovation[]>(() => {
