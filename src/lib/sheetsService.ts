@@ -135,6 +135,21 @@ export const initAuthListener = (
 export const googleSignIn = async (): Promise<{ user: any; accessToken: string } | null> => {
   if (isSigningIn) return null;
   isSigningIn = true;
+  
+  // Try Google Identity Services (GIS) direct sign-in first to avoid Firebase Auth popup handler domain restrictions on Vercel
+  try {
+    const gisResult = await signInWithGis();
+    if (gisResult && gisResult.accessToken) {
+      return gisResult;
+    }
+  } catch (gisErr: any) {
+    console.warn('GIS direct sign-in failed or closed, trying Firebase Auth fallback:', gisErr);
+    // If user closed the popup in GIS or denied permission, rethrow error
+    if (gisErr?.message?.includes('access_denied') || gisErr?.message?.includes('popup_closed') || gisErr?.message?.includes('closed')) {
+      throw gisErr;
+    }
+  }
+
   try {
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
