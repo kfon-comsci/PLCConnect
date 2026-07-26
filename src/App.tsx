@@ -47,10 +47,17 @@ export default function App() {
   // --- Local Persistence & State Setup ---
   const [currentUser, setCurrentUser] = useState<AppUser>(() => {
     const saved = localStorage.getItem('plc_connect_current_user');
-    return saved ? JSON.parse(saved) : {
-      email: 'admin@bms.ac.th',
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fallthrough
+      }
+    }
+    return {
+      email: 'admin1',
       role: 'Admin',
-      name: 'ผู้ดูแลระบบ (Admin)',
+      name: 'Admin',
       password: ''
     };
   });
@@ -61,12 +68,15 @@ export default function App() {
 
   const [usersList, setUsersList] = useState<AppUser[]>(() => {
     const saved = localStorage.getItem('plc_connect_users_list');
-    if (!saved) return [];
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return [];
+    if (saved) {
+      try {
+        const parsed: AppUser[] = JSON.parse(saved);
+        if (parsed.length > 0) return parsed;
+      } catch {
+        // Fallthrough
+      }
     }
+    return [];
   });
 
   const [masterInnovations, setMasterInnovations] = useState<MasterInnovation[]>(() => {
@@ -96,7 +106,7 @@ export default function App() {
   });
   const [sheetsToken, setSheetsToken] = useState<string | null>(null); // Kept safely in-memory only
   const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
-    return localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
+    return TARGET_SPREADSHEET_ID;
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -104,20 +114,18 @@ export default function App() {
     return localStorage.getItem('plc_connect_last_synced') || null;
   });
 
-  // Google OAuth Restore Session
+  // Google OAuth Restore Session & Auto Pull
   useEffect(() => {
+    localStorage.setItem('plc_connect_spreadsheet_id', TARGET_SPREADSHEET_ID);
     const unsubscribe = initAuthListener(
       async (user, token) => {
         setSheetsUser(user);
         setSheetsToken(token);
         localStorage.setItem('plc_connect_sheets_user', JSON.stringify(user));
-        const storedSpreadsheetId = localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
-        setSpreadsheetId(storedSpreadsheetId);
-        localStorage.setItem('plc_connect_spreadsheet_id', storedSpreadsheetId);
         
-        // Auto background pull on session restore to keep things up-to-date from Google Sheets ONLY
+        // Auto background pull from exact Google Sheet ID
         try {
-          await pullDataFromSheets(token, storedSpreadsheetId);
+          await pullDataFromSheets(token, TARGET_SPREADSHEET_ID);
         } catch (e) {
           console.error("Auto-pull on session restore failed:", e);
         }
@@ -493,6 +501,8 @@ export default function App() {
     return (
       <LoginPage
         usersList={usersList}
+        isSyncing={isSyncing}
+        onConnectSheets={handleConnectSheets}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           setIsLoggedIn(true);

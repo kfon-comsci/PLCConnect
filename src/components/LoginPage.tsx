@@ -5,9 +5,11 @@ import { GraduationCap, Shield, User, Lock, ArrowRight, Sparkles, AlertCircle, E
 interface LoginPageProps {
   usersList: AppUser[];
   onLoginSuccess: (user: AppUser) => void;
+  onConnectSheets?: () => void;
+  isSyncing?: boolean;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess, onConnectSheets, isSyncing }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,8 +96,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess 
         </div>
 
         {/* Main Login Card */}
-        <div className="bg-white rounded-[32px] p-8 shadow-xl shadow-gray-200/50 border border-gray-100/80">
-          <h2 className="text-xl font-extrabold text-gray-900 mb-6 text-center">เข้าสู่ระบบการทำงาน</h2>
+        <div className="bg-white rounded-[32px] p-8 shadow-xl shadow-gray-200/50 border border-gray-100/80 space-y-5">
+          <h2 className="text-xl font-extrabold text-gray-900 text-center">เข้าสู่ระบบการทำงาน</h2>
+
+          {onConnectSheets && (
+            <button
+              id="login-google-connect-btn"
+              type="button"
+              onClick={onConnectSheets}
+              disabled={isSyncing}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 border border-emerald-500/30"
+            >
+              <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-300 animate-ping' : 'bg-emerald-200'}`}></span>
+              <span>{isSyncing ? 'กำลังดึงข้อมูลจาก Google Sheets...' : 'เข้าสู่ระบบด้วย Google / เชื่อมต่อ Google Sheets'}</span>
+            </button>
+          )}
+
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100"></div>
+            </div>
+            <div className="relative flex justify-center text-[11px]">
+              <span className="bg-white px-3 font-semibold text-gray-400 uppercase tracking-wider">หรือลงชื่อเข้าใช้ด้วยชื่อผู้ใช้</span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Input - Username */}
