@@ -1,0 +1,6 @@
+{
+  "name": "PLC Connect",
+  "description": "ระบบชุมชนแห่งการเรียนรู้ครูเพื่อศิษย์แบบบูรณาการ 1 นวัตกรรม 1 ห้องเรียน โรงเรียนเบญจมานุสรณ์ จังหวัดจันทบุรี",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

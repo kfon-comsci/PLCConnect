@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Thai", "Inter", "Microsoft YaHei", "PingFang SC", "Heiti SC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-primary: #E13A9D;
+  --color-secondary: #7D57B2;
+  --color-tertiary: #1696CC;
+  --color-neutral-brand: #6A5077;
+  --color-app-bg: #F5F4F7;
+  --radius-card: 20px;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-app-bg);
+  color: #1a1a1a;
+  line-height: 1.6;
+}
