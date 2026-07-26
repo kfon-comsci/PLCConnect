@@ -1866,25 +1866,20 @@ export const System5Admin: React.FC<System5AdminProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
               
-              {spreadsheetId ? (
-                // Connected State (Auto-connected by default)
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 space-y-4 shadow-sm">
+              {sheetsToken && spreadsheetId ? (
+                // Connected State
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="w-6 h-6 text-emerald-600 animate-pulse" />
                     </div>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-md font-extrabold text-emerald-950">เชื่อมต่อ Google Sheets อัตโนมัติเรียบร้อยแล้ว</h4>
-                        <span className="text-[10px] bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-full font-extrabold">
-                          Single Source of Truth
-                        </span>
-                      </div>
+                      <h4 className="text-md font-extrabold text-emerald-950">เชื่อมต่อ Google Sheets สำเร็จ</h4>
                       <p className="text-xs text-emerald-800 font-medium">
-                        บัญชี Google: <span className="font-bold underline">{sheetsUser?.email || 'สิทธิ์การเชื่อมต่อหลักโรงเรียนเบญจมานุสรณ์'}</span>
+                        บัญชี Google: <span className="font-bold underline">{sheetsUser?.email || 'Connected'}</span>
                       </p>
                       <p className="text-[11px] text-emerald-700/80 font-bold">
-                        สถานะระบบ: เชื่อมโยงฐานข้อมูลแผ่นงาน PLC Connect บันทึกและดึงข้อมูลจาก Google Sheets เป็นหลักโดยอัตโนมัติ
+                        สถานะระบบ: เขียนและบันทึกข้อมูลแบบเรียลไทม์ไปยัง Google Sheets เรียบร้อยแล้ว
                       </p>
                     </div>
                   </div>
@@ -1899,7 +1894,7 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                     <div>
                       <span className="block text-[11px] text-emerald-800/80 font-bold">ซิงค์ล่าสุด (Last Synced)</span>
                       <span className="text-xs font-bold text-emerald-900 mt-1 block">
-                        {lastSynced ? `🕒 ${lastSynced} น.` : 'เรียลไทม์ (Auto Sync)'}
+                        {lastSynced ? `🕒 ${lastSynced} น.` : 'กำลังเชื่อมโยงครั้งแรก...'}
                       </span>
                     </div>
                   </div>
@@ -1933,22 +1928,87 @@ export const System5Admin: React.FC<System5AdminProps> = ({
                       ) : (
                         <RefreshCcw className="w-4 h-4" />
                       )}
-                      ดึงข้อมูลล่าสุดจากชีต (Pull)
+                      ดึงข้อมูลจากชีต (Pull)
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => onConnectSheets()}
+                      onClick={onForcePush}
                       disabled={isSyncing}
-                      className="h-10 px-4 bg-white border border-purple-200 hover:bg-purple-50 text-purple-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
+                      className="h-10 px-4 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      <Database className="w-4 h-4" />
-                      {sheetsToken ? 'เข้าสู่ระบบด้วย Google อีกครั้ง' : 'เข้าสู่ระบบด้วย Google / สิทธิ์เขียนข้อมูล'}
+                      {isSyncing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Database className="w-4 h-4" />
+                      )}
+                      ส่งข้อมูลขึ้นชีต (Push)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onDisconnectSheets}
+                      className="h-10 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                    >
+                      ยกเลิกการเชื่อมต่อ
                     </button>
                   </div>
 
                 </div>
-              ) : null}
+              ) : (
+                // Disconnected State
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center shrink-0">
+                      <Database className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-md font-extrabold text-gray-900">แผ่นงานยังไม่เชื่อมต่อ</h4>
+                      <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                        เปิดระบบจัดเก็บฐานข้อมูลแบบเรียลไทม์เพื่อซิงค์ข้อมูลนวัตกรรม, กิจกรรม PLC, สมาชิก และการตั้งค่าขึ้นบน Google Sheets บัญชีของคุณโดยอัตโนมัติ
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 max-w-md">
+                    <label className="block text-xs font-bold text-gray-700">
+                      ระบุ ID แผ่นงาน Google Sheets ที่ต้องการเชื่อมโยง (ไม่บังคับ)
+                    </label>
+                    <input
+                      type="text"
+                      value={customSpreadsheetIdInput}
+                      onChange={(e) => setCustomSpreadsheetIdInput(e.target.value)}
+                      placeholder="เช่น 1BttpSKrYJGq05Rhja9gb-WbxvibVvr1LBeQJOT9jDdo"
+                      className="w-full h-10 px-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#1696CC] font-mono shadow-sm bg-white text-gray-950"
+                    />
+                    <p className="text-[10px] text-gray-500 font-semibold">
+                      หากต้องการใช้แผ่นงานที่มีอยู่แล้ว กรุณากรอก ID ของแผ่นงานนั้น และตรวจสอบว่าได้แชร์สิทธิ์เข้าถึงแล้ว
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => onConnectSheets(customSpreadsheetIdInput.trim() || undefined)}
+                      className="gsi-material-button scale-105"
+                    >
+                      <div className="gsi-material-button-state"></div>
+                      <div className="gsi-material-button-content-wrapper">
+                        <div className="gsi-material-button-icon">
+                          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: 'block' }}>
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                            <path fill="none" d="M0 0h48v48H0z"></path>
+                          </svg>
+                        </div>
+                        <span className="gsi-material-button-contents font-bold text-xs">เชื่อมต่อกับ Google Sheets</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
 

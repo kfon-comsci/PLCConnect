@@ -5,11 +5,9 @@ import { GraduationCap, Shield, User, Lock, ArrowRight, Sparkles, AlertCircle, E
 interface LoginPageProps {
   usersList: AppUser[];
   onLoginSuccess: (user: AppUser) => void;
-  onConnectSheets?: () => void;
-  isSyncing?: boolean;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess, onConnectSheets, isSyncing }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -96,30 +94,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess,
         </div>
 
         {/* Main Login Card */}
-        <div className="bg-white rounded-[32px] p-8 shadow-xl shadow-gray-200/50 border border-gray-100/80 space-y-5">
-          <h2 className="text-xl font-extrabold text-gray-900 text-center">เข้าสู่ระบบการทำงาน</h2>
-
-          {onConnectSheets && (
-            <button
-              id="login-google-connect-btn"
-              type="button"
-              onClick={onConnectSheets}
-              disabled={isSyncing}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 border border-emerald-500/30"
-            >
-              <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-300 animate-ping' : 'bg-emerald-200'}`}></span>
-              <span>{isSyncing ? 'กำลังดึงข้อมูลจาก Google Sheets...' : 'เข้าสู่ระบบด้วย Google / เชื่อมต่อ Google Sheets'}</span>
-            </button>
-          )}
-
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-100"></div>
-            </div>
-            <div className="relative flex justify-center text-[11px]">
-              <span className="bg-white px-3 font-semibold text-gray-400 uppercase tracking-wider">หรือลงชื่อเข้าใช้ด้วยชื่อผู้ใช้</span>
-            </div>
-          </div>
+        <div className="bg-white rounded-[32px] p-8 shadow-xl shadow-gray-200/50 border border-gray-100/80">
+          <h2 className="text-xl font-extrabold text-gray-900 mb-6 text-center">เข้าสู่ระบบการทำงาน</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Input - Username */}
@@ -209,18 +185,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess,
           </button>
         </div>
 
-        {/* Demo Accounts Panel */}
+        {/* Google Sheets Users Panel */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-sm overflow-hidden transition-all duration-300">
           <button
             type="button"
             onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-            className="w-full px-5 py-3.5 flex items-center justify-between text-left text-xs font-bold text-gray-600 hover:bg-gray-50/50 transition"
+            className="w-full px-5 py-3.5 flex items-center justify-between text-left text-xs font-bold text-gray-700 hover:bg-gray-50/50 transition"
           >
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#7D57B2]" />
-              <span>บัญชีทดสอบระบบสำหรับจำลองบทบาทผู้ใช้งาน</span>
+              <span>รายชื่อผู้ใช้งานจากระบบ Google Sheets</span>
             </div>
-            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-bold">
               {showDemoAccounts ? 'ซ่อน' : 'แสดง'}
             </span>
           </button>
@@ -230,7 +206,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess,
               {usersList.length > 0 ? (
                 <>
                   <p className="text-[11px] text-gray-500 font-medium">
-                    คลิกเลือกผู้ใช้งานจาก Google Sheets เพื่อกรอกข้อมูลอัตโนมัติ:
+                    เลือกชื่อผู้ใช้งานที่บันทึกไว้บน Google Sheets เพื่อเข้าสู่ระบบ:
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {usersList.map((usr) => (
@@ -238,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess,
                         key={usr.email}
                         type="button"
                         onClick={() => fillCredentials(usr.email, usr.password || '')}
-                        className="p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-[#E13A9D]/5 hover:border-[#E13A9D]/20 text-left transition flex flex-col justify-between"
+                        className="p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-[#7D57B2]/5 hover:border-[#7D57B2]/20 text-left transition flex flex-col justify-between"
                       >
                         <span className="font-bold text-gray-800 text-[11px] truncate">{usr.name}</span>
                         <span className="text-[10px] text-gray-500 mt-0.5 font-semibold">
@@ -255,7 +231,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess,
                 </>
               ) : (
                 <p className="text-[11px] text-gray-500 font-medium text-center py-2">
-                  ยังไม่มีรายชื่อผู้ใช้ใน Google Sheets (สามารถป้อน admin/1234 หรือเข้าสู่ระบบ Google เพื่อเริ่มต้นใช้งาน)
+                  ยังไม่มีรายชื่อผู้ใช้ใน Google Sheets (สามารถป้อน admin เพื่อเข้าสู่ระบบผู้ดูแลระบบ)
                 </p>
               )}
             </div>

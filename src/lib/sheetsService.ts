@@ -32,7 +32,7 @@ getRedirectResult(auth)
     if (result) {
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
-        cachedAccessToken = credential.accessToken;
+        setCachedToken(credential.accessToken);
         console.log('Google Auth Redirect Success: Access Token Cached');
       }
     }
@@ -81,7 +81,7 @@ export const signInWithGis = async (): Promise<{ user: any; accessToken: string 
           }
           if (response.access_token) {
             const token = response.access_token;
-            cachedAccessToken = token;
+            setCachedToken(token);
             
             try {
               const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -143,7 +143,7 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
     if (!token) {
       throw new Error('Could not retrieve access token from Google sign-in.');
     }
-    cachedAccessToken = token;
+    setCachedToken(token);
     return { user: result.user, accessToken: token };
   } catch (error: any) {
     console.warn('Firebase Auth Sign-In notice:', error);
@@ -197,17 +197,31 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
 
 export const googleSignOut = async (): Promise<void> => {
   await signOut(auth);
-  cachedAccessToken = null;
+  setCachedToken(null);
 };
 
-export const getCachedToken = (): string | null => cachedAccessToken;
+export const getCachedToken = (): string | null => {
+  if (cachedAccessToken) return cachedAccessToken;
+  const stored = localStorage.getItem('plc_connect_sheets_access_token');
+  if (stored) {
+    cachedAccessToken = stored;
+    return stored;
+  }
+  return null;
+};
+
 export const setCachedToken = (token: string | null) => {
   cachedAccessToken = token;
+  if (token) {
+    localStorage.setItem('plc_connect_sheets_access_token', token);
+  } else {
+    localStorage.removeItem('plc_connect_sheets_access_token');
+  }
 };
 
 // Target Drive Folder ID & Spreadsheet ID requested by User
 export const TARGET_DRIVE_FOLDER_ID = '1DRTYBqB6Mejcrr4SDQMsQV6JPyV7qwzL';
-export const TARGET_SPREADSHEET_ID = '14HIQBJxAjXCzCl1IU8UuSxEVIVL0VKtQKffXK_GqwPg';
+export const TARGET_SPREADSHEET_ID = '14HIQBJxAjXcZCl1lU8UuSXeVIVL0VKtQKffXK_GqwPg';
 
 export async function ensureSheetTabExists(token: string, spreadsheetId: string, tabName: string): Promise<void> {
   try {

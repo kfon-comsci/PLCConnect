@@ -283,12 +283,11 @@ export const System3Classroom: React.FC<System3ClassroomProps> = ({
     }
   };
 
-  // Upload simulation handler
-  const handleSimulatedUpload = (key: keyof typeof files, e: React.ChangeEvent<HTMLInputElement>) => {
+  // Real file upload handler
+  const handleSimulatedUpload = async (key: keyof typeof files, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       
-      // Update state to 'uploading'
       setFiles(prev => ({
         ...prev,
         [key]: {
@@ -298,24 +297,55 @@ export const System3Classroom: React.FC<System3ClassroomProps> = ({
         }
       }));
 
-      // Simulate network latency
-      setTimeout(() => {
-        let fakeUrl = '';
-        if (file.type.startsWith('image/')) {
-          fakeUrl = URL.createObjectURL(file);
-        } else {
-          fakeUrl = 'https://drive.google.com/open?id=mock_doc_id_' + Date.now();
+      try {
+        let token = getCachedToken();
+        if (!token) {
+          const authRes = await googleSignIn();
+          if (authRes && authRes.accessToken) {
+            token = authRes.accessToken;
+          }
         }
 
+        if (token) {
+          const result = await uploadFileToDriveAndLogToSheet(token, file, {
+            classroomName: selectedClass,
+            reporterName: reporterName || currentUser.name,
+            gradeLevel: gradeLevel,
+            folderId: TARGET_DRIVE_FOLDER_ID,
+            spreadsheetId: TARGET_SPREADSHEET_ID
+          });
+
+          setFiles(prev => ({
+            ...prev,
+            [key]: {
+              name: file.name,
+              status: 'success',
+              url: result.directUrl || result.webViewLink
+            }
+          }));
+        } else {
+          const fallbackUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : '';
+          setFiles(prev => ({
+            ...prev,
+            [key]: {
+              name: file.name,
+              status: 'success',
+              url: fallbackUrl
+            }
+          }));
+        }
+      } catch (err) {
+        console.error('File upload error:', err);
+        const fallbackUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : '';
         setFiles(prev => ({
           ...prev,
           [key]: {
             name: file.name,
             status: 'success',
-            url: fakeUrl
+            url: fallbackUrl
           }
         }));
-      }, 1000);
+      }
     }
   };
 

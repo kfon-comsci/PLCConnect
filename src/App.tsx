@@ -47,17 +47,10 @@ export default function App() {
   // --- Local Persistence & State Setup ---
   const [currentUser, setCurrentUser] = useState<AppUser>(() => {
     const saved = localStorage.getItem('plc_connect_current_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // Fallthrough
-      }
-    }
-    return {
-      email: 'admin1',
+    return saved ? JSON.parse(saved) : {
+      email: 'admin@bms.ac.th',
       role: 'Admin',
-      name: 'Admin',
+      name: 'ผู้ดูแลระบบ (Admin)',
       password: ''
     };
   });
@@ -68,15 +61,12 @@ export default function App() {
 
   const [usersList, setUsersList] = useState<AppUser[]>(() => {
     const saved = localStorage.getItem('plc_connect_users_list');
-    if (saved) {
-      try {
-        const parsed: AppUser[] = JSON.parse(saved);
-        if (parsed.length > 0) return parsed;
-      } catch {
-        // Fallthrough
-      }
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return [];
     }
-    return [];
   });
 
   const [masterInnovations, setMasterInnovations] = useState<MasterInnovation[]>(() => {
@@ -106,7 +96,7 @@ export default function App() {
   });
   const [sheetsToken, setSheetsToken] = useState<string | null>(null); // Kept safely in-memory only
   const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
-    return TARGET_SPREADSHEET_ID;
+    return localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -114,25 +104,36 @@ export default function App() {
     return localStorage.getItem('plc_connect_last_synced') || null;
   });
 
-  // Google OAuth Restore Session & Auto Pull
+  // Google OAuth Restore Session & Google Sheets Auto-Fetch
   useEffect(() => {
-    localStorage.setItem('plc_connect_spreadsheet_id', TARGET_SPREADSHEET_ID);
+    const storedSpreadsheetId = localStorage.getItem('plc_connect_spreadsheet_id') || TARGET_SPREADSHEET_ID;
+    setSpreadsheetId(storedSpreadsheetId);
+
+    const activeToken = getCachedToken();
+    if (activeToken) {
+      setSheetsToken(activeToken);
+      pullDataFromSheets(activeToken, storedSpreadsheetId).catch((e) => {
+        console.warn("Auto-pull on page load failed:", e);
+      });
+    }
+
     const unsubscribe = initAuthListener(
       async (user, token) => {
         setSheetsUser(user);
         setSheetsToken(token);
+        setCachedToken(token);
         localStorage.setItem('plc_connect_sheets_user', JSON.stringify(user));
+        localStorage.setItem('plc_connect_spreadsheet_id', storedSpreadsheetId);
         
-        // Auto background pull from exact Google Sheet ID
+        // Auto background pull on session restore to keep things up-to-date from Google Sheets ONLY
         try {
-          await pullDataFromSheets(token, TARGET_SPREADSHEET_ID);
+          await pullDataFromSheets(token, storedSpreadsheetId);
         } catch (e) {
           console.error("Auto-pull on session restore failed:", e);
         }
       },
       () => {
         setSheetsUser(null);
-        setSheetsToken(null);
         localStorage.removeItem('plc_connect_sheets_user');
       }
     );
@@ -501,8 +502,6 @@ export default function App() {
     return (
       <LoginPage
         usersList={usersList}
-        isSyncing={isSyncing}
-        onConnectSheets={handleConnectSheets}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           setIsLoggedIn(true);
