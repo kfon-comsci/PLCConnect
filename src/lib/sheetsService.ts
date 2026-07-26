@@ -67,7 +67,7 @@ function loadGsiScript(): Promise<void> {
 
 export const signInWithGis = async (): Promise<{ user: any; accessToken: string }> => {
   await loadGsiScript();
-  const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || firebaseConfig.oAuthClientId || '731890835310-9icp9ll9q861nhgegobufrfeb27ne93f.apps.googleusercontent.com';
+  const clientId = ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string) || firebaseConfig.oAuthClientId || '731890835310-9icp9ll9q861nhgegobufrfeb27ne93f.apps.googleusercontent.com';
   
   return new Promise((resolve, reject) => {
     try {
@@ -135,20 +135,6 @@ export const initAuthListener = (
 export const googleSignIn = async (): Promise<{ user: any; accessToken: string } | null> => {
   if (isSigningIn) return null;
   isSigningIn = true;
-  
-  // Try Google Identity Services (GIS) direct sign-in first to avoid Firebase Auth popup handler domain restrictions on Vercel
-  try {
-    const gisResult = await signInWithGis();
-    if (gisResult && gisResult.accessToken) {
-      return gisResult;
-    }
-  } catch (gisErr: any) {
-    console.warn('GIS direct sign-in failed or closed, trying Firebase Auth fallback:', gisErr);
-    // If user closed the popup in GIS or denied permission, rethrow error
-    if (gisErr?.message?.includes('access_denied') || gisErr?.message?.includes('popup_closed') || gisErr?.message?.includes('closed')) {
-      throw gisErr;
-    }
-  }
 
   try {
     const result = await signInWithPopup(auth, provider);
@@ -160,15 +146,16 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
     cachedAccessToken = token;
     return { user: result.user, accessToken: token };
   } catch (error: any) {
-    console.warn('Google Sign-In notice:', error);
+    console.warn('Firebase Auth Sign-In notice:', error);
 
-    // Fallback to Google Identity Services (GIS) if Firebase Auth domain is unauthorized
+    // Fallback to Google Identity Services (GIS) if Firebase Auth domain is unauthorized or popup fails
     if (
       error?.code === 'auth/unauthorized-domain' ||
+      error?.code === 'auth/invalid-auth-endpoint' ||
       error?.message?.includes('unauthorized-domain') ||
-      error?.message?.includes('auth/unauthorized-domain')
+      error?.message?.includes('invalid')
     ) {
-      console.log('Domain unauthorized in Firebase Auth. Switching to direct GIS OAuth fallback...');
+      console.log('Firebase Auth handler notice. Switching to direct GIS OAuth fallback...');
       try {
         const gisResult = await signInWithGis();
         return gisResult;
@@ -179,18 +166,30 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
     }
 
     if (error?.code === 'auth/popup-blocked' || error?.message?.includes('popup-blocked')) {
-      console.warn('Popup blocked by browser. Attempting signInWithRedirect fallback...');
+      console.warn('Popup blocked by browser. Attempting direct GIS flow...');
       try {
-        await signInWithRedirect(auth, provider);
-        return null;
-      } catch (redirectErr) {
-        console.error('signInWithRedirect failed:', redirectErr);
+        const gisResult = await signInWithGis();
+        return gisResult;
+      } catch (gisErr: any) {
+        console.error('GIS fallback for blocked popup failed:', gisErr);
       }
       const blockedErr = new Error('ป๊อปอัปถูกบล็อกโดยเบราว์เซอร์ (Popup Blocked) กรุณากดอนุญาตป๊อปอัป หรือเปิดแอปในหน้าต่างใหม่ (Open in New Tab)');
       (blockedErr as any).code = 'auth/popup-blocked';
       throw blockedErr;
     }
-    throw error;
+    
+    // If user explicitly closed popup
+    if (error?.code === 'auth/popup-closed-by-user') {
+      throw new Error('การลงชื่อเข้าใช้ถูกยกเลิก (User closed popup)');
+    }
+
+    // Try GIS as last resort fallback for other errors
+    try {
+      const gisResult = await signInWithGis();
+      return gisResult;
+    } catch {
+      throw error;
+    }
   } finally {
     isSigningIn = false;
   }

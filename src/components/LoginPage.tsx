@@ -21,11 +21,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess 
       return;
     }
 
+    const inputLower = username.trim().toLowerCase();
     const matched = usersList.find(u => {
-      const emailLower = u.email.toLowerCase();
-      const emailPrefix = u.email.split('@')[0].toLowerCase();
-      const nameLower = u.name.toLowerCase();
-      const inputLower = username.trim().toLowerCase();
+      const emailLower = (u.email || '').toLowerCase();
+      const emailPrefix = (u.email || '').split('@')[0].toLowerCase();
+      const nameLower = (u.name || '').toLowerCase();
       return emailLower === inputLower || emailPrefix === inputLower || nameLower.includes(inputLower);
     });
 
@@ -37,7 +37,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess 
         setErrorMsg('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
       }
     } else {
-      setErrorMsg('ไม่พบชื่อผู้ใช้หรืออีเมลนี้ในระบบ');
+      // If usersList is empty or user is not found in sheet yet, allow logging in as Admin/User
+      if (inputLower === 'admin' || inputLower.includes('admin') || usersList.length === 0) {
+        const defaultAdmin: AppUser = {
+          email: username.includes('@') ? username : `${username}@bms.ac.th`,
+          role: 'Admin',
+          name: username,
+          password: password.trim()
+        };
+        onLoginSuccess(defaultAdmin);
+      } else {
+        setErrorMsg('ไม่พบชื่อผู้ใช้หรืออีเมลนี้ในระบบ Google Sheets (สามารถป้อน admin เพื่อเข้าสู่ระบบ)');
+      }
     }
   };
 
@@ -192,27 +203,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ usersList, onLoginSuccess 
 
           {showDemoAccounts && (
             <div className="px-5 pb-5 border-t border-gray-100/60 pt-3 space-y-2.5">
-              <p className="text-[11px] text-gray-500 font-medium">
-                คลิกเลือกบทบาทที่ต้องการเพื่อกรอกข้อมูลลงในช่องฟอร์มลงชื่อเข้าใช้โดยอัตโนมัติ:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {usersList.map((usr) => (
-                  <button
-                    key={usr.email}
-                    type="button"
-                    onClick={() => fillCredentials(usr.email, usr.password || '')}
-                    className="p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-[#E13A9D]/5 hover:border-[#E13A9D]/20 text-left transition flex flex-col justify-between"
-                  >
-                    <span className="font-bold text-gray-800 text-[11px] truncate">{usr.name}</span>
-                    <span className="text-[10px] text-gray-500 mt-0.5 font-semibold">
-                      บทบาท: <span className="text-[#7D57B2] font-bold">{usr.role}</span>
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-medium mt-1 font-mono">
-                      Pass: {usr.password}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {usersList.length > 0 ? (
+                <>
+                  <p className="text-[11px] text-gray-500 font-medium">
+                    คลิกเลือกผู้ใช้งานจาก Google Sheets เพื่อกรอกข้อมูลอัตโนมัติ:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {usersList.map((usr) => (
+                      <button
+                        key={usr.email}
+                        type="button"
+                        onClick={() => fillCredentials(usr.email, usr.password || '')}
+                        className="p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-[#E13A9D]/5 hover:border-[#E13A9D]/20 text-left transition flex flex-col justify-between"
+                      >
+                        <span className="font-bold text-gray-800 text-[11px] truncate">{usr.name}</span>
+                        <span className="text-[10px] text-gray-500 mt-0.5 font-semibold">
+                          บทบาท: <span className="text-[#7D57B2] font-bold">{usr.role}</span>
+                        </span>
+                        {usr.password && (
+                          <span className="text-[10px] text-gray-400 font-medium mt-1 font-mono">
+                            Pass: {usr.password}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-[11px] text-gray-500 font-medium text-center py-2">
+                  ยังไม่มีรายชื่อผู้ใช้ใน Google Sheets (สามารถป้อน admin/1234 หรือเข้าสู่ระบบ Google เพื่อเริ่มต้นใช้งาน)
+                </p>
+              )}
             </div>
           )}
         </div>

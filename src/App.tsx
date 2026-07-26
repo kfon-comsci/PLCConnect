@@ -47,7 +47,12 @@ export default function App() {
   // --- Local Persistence & State Setup ---
   const [currentUser, setCurrentUser] = useState<AppUser>(() => {
     const saved = localStorage.getItem('plc_connect_current_user');
-    return saved ? JSON.parse(saved) : defaultUsers[0]; // default to Admin
+    return saved ? JSON.parse(saved) : {
+      email: 'admin@bms.ac.th',
+      role: 'Admin',
+      name: 'ผู้ดูแลระบบ (Admin)',
+      password: ''
+    };
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -56,30 +61,27 @@ export default function App() {
 
   const [usersList, setUsersList] = useState<AppUser[]>(() => {
     const saved = localStorage.getItem('plc_connect_users_list');
-    if (!saved) return defaultUsers;
+    if (!saved) return [];
     try {
-      const parsed: AppUser[] = JSON.parse(saved);
-      const existingEmails = new Set(parsed.map(u => (u.email || '').toLowerCase()));
-      const missingDefaults = defaultUsers.filter(d => !existingEmails.has((d.email || '').toLowerCase()));
-      return missingDefaults.length > 0 ? [...parsed, ...missingDefaults] : parsed;
+      return JSON.parse(saved);
     } catch {
-      return defaultUsers;
+      return [];
     }
   });
 
   const [masterInnovations, setMasterInnovations] = useState<MasterInnovation[]>(() => {
     const saved = localStorage.getItem('plc_connect_masters');
-    return saved ? JSON.parse(saved) : initialMasterInnovations;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [plcActivities, setPlcActivities] = useState<PLCActivity[]>(() => {
     const saved = localStorage.getItem('plc_connect_activities');
-    return saved ? JSON.parse(saved) : initialPLCActivities;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [classroomInnovations, setClassroomInnovations] = useState<ClassroomInnovation[]>(() => {
     const saved = localStorage.getItem('plc_connect_classrooms');
-    return saved ? JSON.parse(saved) : initialClassroomInnovations;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
@@ -113,32 +115,9 @@ export default function App() {
         setSpreadsheetId(storedSpreadsheetId);
         localStorage.setItem('plc_connect_spreadsheet_id', storedSpreadsheetId);
         
-        // Auto background pull on session restore to keep things up-to-date
+        // Auto background pull on session restore to keep things up-to-date from Google Sheets ONLY
         try {
-          await ensureRequiredSheetsExist(token, storedSpreadsheetId);
-          const usersData = await readSheet(token, storedSpreadsheetId, 'Users');
-          if (usersData && usersData.length > 1) {
-            setUsersList(mapUsers(usersData));
-          }
-          const mastersData = await readSheet(token, storedSpreadsheetId, 'MasterInnovations');
-          if (mastersData && mastersData.length > 1) {
-            setMasterInnovations(mapMasterInnovations(mastersData));
-          }
-          const plcData = await readSheet(token, storedSpreadsheetId, 'PLCActivities');
-          if (plcData && plcData.length > 1) {
-            setPlcActivities(mapPLCActivities(plcData));
-          }
-          const classroomsData = await readSheet(token, storedSpreadsheetId, 'ClassroomInnovations');
-          if (classroomsData && classroomsData.length > 1) {
-            setClassroomInnovations(mapClassroomInnovations(classroomsData));
-          }
-          const adminData = await readSheet(token, storedSpreadsheetId, 'AdminSettings');
-          if (adminData && adminData.length > 1) {
-            setAdminSettings(mapAdminSettings(adminData));
-          }
-          const now = new Date().toLocaleTimeString();
-          setLastSynced(now);
-          localStorage.setItem('plc_connect_last_synced', now);
+          await pullDataFromSheets(token, storedSpreadsheetId);
         } catch (e) {
           console.error("Auto-pull on session restore failed:", e);
         }
@@ -183,7 +162,7 @@ export default function App() {
     }
   };
 
-  const pullDataFromSheets = async (token: string, sId: string, isInitialConnect = false) => {
+  const pullDataFromSheets = async (token: string, sId: string, _isInitialConnect = false) => {
     setIsSyncing(true);
     setSyncError(null);
     try {
@@ -194,32 +173,39 @@ export default function App() {
       const classroomsData = await readSheet(token, sId, 'ClassroomInnovations');
       const adminData = await readSheet(token, sId, 'AdminSettings');
 
-      const isEmptySpreadsheet = !usersData || usersData.length <= 1;
-
-      if (isEmptySpreadsheet && isInitialConnect) {
-        // Initialize spreadsheet with local data on first connect so no data is lost
-        await pushDataToSheets(token, sId);
+      if (usersData && usersData.length > 1) {
+        setUsersList(mapUsers(usersData));
       } else {
-        if (usersData && usersData.length > 1) {
-          setUsersList(mapUsers(usersData));
-        }
-        if (mastersData && mastersData.length > 1) {
-          setMasterInnovations(mapMasterInnovations(mastersData));
-        }
-        if (plcData && plcData.length > 1) {
-          setPlcActivities(mapPLCActivities(plcData));
-        }
-        if (classroomsData && classroomsData.length > 1) {
-          setClassroomInnovations(mapClassroomInnovations(classroomsData));
-        }
-        if (adminData && adminData.length > 1) {
-          setAdminSettings(mapAdminSettings(adminData));
-        }
-
-        const now = new Date().toLocaleTimeString();
-        setLastSynced(now);
-        localStorage.setItem('plc_connect_last_synced', now);
+        setUsersList([]);
       }
+
+      if (mastersData && mastersData.length > 1) {
+        setMasterInnovations(mapMasterInnovations(mastersData));
+      } else {
+        setMasterInnovations([]);
+      }
+
+      if (plcData && plcData.length > 1) {
+        setPlcActivities(mapPLCActivities(plcData));
+      } else {
+        setPlcActivities([]);
+      }
+
+      if (classroomsData && classroomsData.length > 1) {
+        setClassroomInnovations(mapClassroomInnovations(classroomsData));
+      } else {
+        setClassroomInnovations([]);
+      }
+
+      if (adminData && adminData.length > 1) {
+        setAdminSettings(mapAdminSettings(adminData));
+      } else {
+        setAdminSettings(initialAdminSettings);
+      }
+
+      const now = new Date().toLocaleTimeString();
+      setLastSynced(now);
+      localStorage.setItem('plc_connect_last_synced', now);
     } catch (err: any) {
       console.error(err);
       setSyncError(err.message || 'ดึงข้อมูลจาก Google Sheets ล้มเหลว');
@@ -244,7 +230,7 @@ export default function App() {
         setSpreadsheetId(sId);
         localStorage.setItem('plc_connect_spreadsheet_id', sId);
         
-        // Populate or sync
+        // Populate or sync directly from Sheets
         await pullDataFromSheets(res.accessToken, sId, true);
         handleShowSuccess();
       }
@@ -272,6 +258,34 @@ export default function App() {
       console.error(err);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleForcePull = async () => {
+    let { token, sid } = getActiveSyncParams();
+    if (!token) {
+      await handleConnectSheets();
+    } else {
+      try {
+        await pullDataFromSheets(token, sid);
+        handleShowSuccess();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleForcePush = async () => {
+    let { token, sid } = getActiveSyncParams();
+    if (!token) {
+      await handleConnectSheets();
+    } else {
+      try {
+        await pushDataToSheets(token, sid);
+        handleShowSuccess();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -833,8 +847,8 @@ export default function App() {
               lastSynced={lastSynced}
               onConnectSheets={(customId) => handleConnectSheets(customId)}
               onDisconnectSheets={handleDisconnectSheets}
-              onForcePull={() => pullDataFromSheets(sheetsToken!, spreadsheetId!)}
-              onForcePush={() => pushDataToSheets(sheetsToken!, spreadsheetId!)}
+              onForcePull={handleForcePull}
+              onForcePush={handleForcePush}
             />
           )}
 
