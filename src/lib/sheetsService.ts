@@ -41,6 +41,82 @@ getRedirectResult(auth)
     console.warn('Google Auth Redirect Result Error:', err);
   });
 
+// Helper to dynamically load GIS script
+function loadGsiScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).google?.accounts?.oauth2) {
+      resolve();
+      return;
+    }
+    const existing = document.getElementById('google-gsi-script');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', (e) => reject(e));
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'google-gsi-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.head.appendChild(script);
+  });
+}
+
+export const signInWithGis = async (): Promise<{ user: any; accessToken: string }> => {
+  await loadGsiScript();
+  const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || firebaseConfig.oAuthClientId || '731890835310-9icp9ll9q861nhgegobufrfeb27ne93f.apps.googleusercontent.com';
+  
+  return new Promise((resolve, reject) => {
+    try {
+      const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+        callback: async (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error_description || response.error));
+            return;
+          }
+          if (response.access_token) {
+            const token = response.access_token;
+            cachedAccessToken = token;
+            
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const info = await res.json();
+              const userObj = {
+                uid: info.sub || 'google-user',
+                displayName: info.name || info.email || 'Google User',
+                email: info.email || '',
+                photoURL: info.picture || ''
+              };
+              resolve({ user: userObj, accessToken: token });
+            } catch {
+              resolve({
+                user: { uid: 'google-user', displayName: 'Google User', email: '', photoURL: '' },
+                accessToken: token
+              });
+            }
+          } else {
+            reject(new Error('ไม่ได้รับ Access Token จาก Google'));
+          }
+        },
+        onerror: (err: any) => {
+          reject(err);
+        }
+      });
+      
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 // 1. Authentication Manager
 export const initAuthListener = (
   onSuccess: (user: User, token: string) => void,
@@ -56,7 +132,7 @@ export const initAuthListener = (
   });
 };
 
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+export const googleSignIn = async (): Promise<{ user: any; accessToken: string } | null> => {
   if (isSigningIn) return null;
   isSigningIn = true;
   try {
@@ -69,7 +145,24 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     cachedAccessToken = token;
     return { user: result.user, accessToken: token };
   } catch (error: any) {
-    console.error('Google Sign-In failed:', error);
+    console.warn('Google Sign-In notice:', error);
+
+    // Fallback to Google Identity Services (GIS) if Firebase Auth domain is unauthorized
+    if (
+      error?.code === 'auth/unauthorized-domain' ||
+      error?.message?.includes('unauthorized-domain') ||
+      error?.message?.includes('auth/unauthorized-domain')
+    ) {
+      console.log('Domain unauthorized in Firebase Auth. Switching to direct GIS OAuth fallback...');
+      try {
+        const gisResult = await signInWithGis();
+        return gisResult;
+      } catch (gisErr: any) {
+        console.error('GIS Fallback failed:', gisErr);
+        throw new Error(`ลงชื่อเข้าใช้ Google ไม่สำเร็จ: ${gisErr?.message || gisErr}`);
+      }
+    }
+
     if (error?.code === 'auth/popup-blocked' || error?.message?.includes('popup-blocked')) {
       console.warn('Popup blocked by browser. Attempting signInWithRedirect fallback...');
       try {
